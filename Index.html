@@ -1,0 +1,514 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AttendX | Attendance Management</title>
+<style>
+:root {
+  --bg:#081222; --panel:#122139; --line:#263b58;
+  --text:#edf5ff; --muted:#91a5bf;
+  --blue:#3987ff; --cyan:#31d5e8;
+  --green:#35d6a0; --red:#ff7187;
+}
+* {box-sizing:border-box}
+body {
+  margin:0; background:radial-gradient(circle at 90% 0,#17375c,transparent 35%),var(--bg);
+  color:var(--text); font:14px Segoe UI,Arial,sans-serif;
+}
+.wrap {max-width:1200px;margin:auto;padding:25px}
+.head,.row {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand {font-size:25px;font-weight:800;display:flex;align-items:center;gap:10px}
+.logo {
+  width:42px;height:42px;border-radius:13px;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));
+  display:grid;place-items:center
+}
+.muted {color:var(--muted)}
+.tabs {display:flex;gap:8px;flex-wrap:wrap;margin:24px 0 16px}
+.tab,.btn {
+  border:1px solid var(--line);border-radius:9px;
+  padding:10px 13px;background:#172b45;color:var(--text);cursor:pointer
+}
+.tab.active,.btn.primary {background:linear-gradient(100deg,var(--blue),#286ee2);border:0}
+.stats {display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:15px}
+.card,.panel {
+  background:linear-gradient(145deg,#14243b,#101b2d);
+  border:1px solid var(--line);border-radius:15px;padding:18px
+}
+.label {color:var(--muted);font-size:11px}
+.num {font-size:29px;font-weight:800;margin-top:10px}
+.g {color:var(--green)} .r {color:var(--red)} .c {color:var(--cyan)}
+.grid {display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+.panel {margin-bottom:14px}
+.tools {display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+input,select {
+  background:#0b1628;border:1px solid var(--line);
+  color:var(--text);border-radius:9px;padding:10px
+}
+input[type=search] {flex:1;min-width:150px}
+table {border-collapse:collapse;width:100%;min-width:450px}
+th,td {text-align:left;padding:12px 8px;border-bottom:1px solid #24354d;font-size:12px}
+th {color:var(--muted);font-size:10px;text-transform:uppercase}
+.scroll {overflow:auto}
+.pill {border-radius:20px;padding:5px 8px;font-size:10px;font-weight:bold}
+.present {background:#123c34;color:#69e9bd}
+.absent {background:#492331;color:#ff91a2}
+.pending {background:#45371f;color:#ffcf83}
+.page {display:none}
+.page.active {display:block}
+.bar {height:7px;background:#293c56;border-radius:20px;margin:10px 0 20px;overflow:hidden}
+.bar span {display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.modal {
+  display:none;position:fixed;inset:0;background:#000b;
+  place-items:center;padding:15px
+}
+.box {
+  width:min(400px,100%);background:var(--panel);
+  padding:22px;border:1px solid var(--line);border-radius:16px
+}
+.box input {display:block;width:100%;margin:7px 0 13px}
+.toast {
+  display:none;position:fixed;bottom:20px;right:20px;
+  background:#17483e;padding:12px 16px;border-radius:10px
+}
+.foot {font-size:11px;color:var(--muted);margin-top:15px}
+@media(max-width:780px) {
+  .stats {grid-template-columns:repeat(2,1fr)}
+  .grid {grid-template-columns:1fr}
+  .wrap {padding:15px}
+  .num {font-size:24px}
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+
+<header class="head">
+  <div>
+    <div class="brand"><span class="logo">A</span> AttendX</div>
+    <div class="muted" style="margin:5px 0 0 52px;font-size:11px;letter-spacing:1px">
+      SMART ATTENDANCE MANAGEMENT
+    </div>
+  </div>
+  <div class="muted" id="today"></div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-p="dashboard">▦ Dashboard</button>
+  <button class="tab" data-p="students">♙ Students</button>
+  <button class="tab" data-p="attendance">✓ Mark Attendance</button>
+  <button class="tab" data-p="history">◷ History</button>
+</nav>
+
+<!-- DASHBOARD -->
+<section id="dashboard" class="page active">
+  <div class="stats">
+    <div class="card"><div class="label">TOTAL STUDENTS</div><div class="num" id="total">0</div></div>
+    <div class="card"><div class="label">PRESENT TODAY</div><div class="num g" id="present">0</div></div>
+    <div class="card"><div class="label">ABSENT TODAY</div><div class="num r" id="absent">0</div></div>
+    <div class="card"><div class="label">ATTENDANCE RATE</div><div class="num c" id="rate">0%</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="row">
+        <div><b>Today's Attendance</b><p class="muted">Student status overview</p></div>
+        <button class="btn" onclick="go('attendance')">Manage →</button>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Student</th><th>Class</th><th>Status</th></tr></thead>
+          <tbody id="dashrows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <b>Attendance Summary</b>
+      <p class="muted">Present</p>
+      <b id="ptext">0 / 0</b>
+      <div class="bar"><span id="pbar"></span></div>
+      <p class="muted">Absent</p>
+      <b id="atext">0 / 0</b>
+      <div class="bar"><span id="abar" style="background:var(--red)"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- STUDENTS -->
+<section id="students" class="page">
+  <div class="panel">
+    <div class="row">
+      <div><b>Student Directory</b><p class="muted">Manage demo student records</p></div>
+      <button class="btn primary" onclick="openForm()">＋ Add Student</button>
+    </div>
+
+    <div class="tools">
+      <input id="sq" type="search" placeholder="Search name or roll…" oninput="renderStudents()">
+      <select id="sc" onchange="renderStudents()">
+        <option value="">All Classes</option>
+      </select>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Name</th><th>Roll</th><th>Class</th><th>Actions</th></tr></thead>
+        <tbody id="srows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ATTENDANCE -->
+<section id="attendance" class="page">
+  <div class="panel">
+    <div class="row">
+      <div><b>Mark Attendance</b><p class="muted">Select a date and set student status</p></div>
+      <input type="date" id="ad">
+    </div>
+
+    <div class="tools">
+      <input id="aq" type="search" placeholder="Search students…" oninput="renderAttendance()">
+      <button class="btn" onclick="markAll('Present')">All Present</button>
+      <button class="btn" onclick="markAll('Absent')">All Absent</button>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Student</th><th>Roll</th><th>Class</th><th>Status</th></tr></thead>
+        <tbody id="arows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section id="history" class="page">
+  <div class="panel">
+    <div class="row">
+      <div><b>Attendance History</b><p class="muted">View and export records</p></div>
+      <button class="btn" onclick="csv()">↓ Export CSV</button>
+    </div>
+
+    <div class="tools">
+      <input type="date" id="hd" onchange="renderHistory()">
+      <input id="hq" type="search" placeholder="Search student…" oninput="renderHistory()">
+      <select id="hs" onchange="renderHistory()">
+        <option value="">All Statuses</option>
+        <option>Present</option>
+        <option>Absent</option>
+      </select>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Date</th><th>Name</th><th>Roll</th><th>Class</th><th>Status</th></tr></thead>
+        <tbody id="hrows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<p class="foot">
+  ATTENDX DEMO · Local browser data only · Not connected to RFID hardware or a live school database.
+</p>
+</main>
+
+<!-- ADD / EDIT STUDENT MODAL -->
+<div class="modal" id="modal">
+  <form class="box" id="form">
+    <h3 id="ft">Add Student</h3>
+    <input id="fid" type="hidden">
+    <label class="muted">Full Name</label>
+    <input id="fn" required>
+    <label class="muted">Roll Number</label>
+    <input id="fr" required>
+    <label class="muted">Class / Division</label>
+    <input id="fc" required placeholder="e.g. Plus One A">
+    <div class="row">
+      <button type="button" class="btn" onclick="closeForm()">Cancel</button>
+      <button class="btn primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const today = new Date().toLocaleDateString('en-CA');
+document.getElementById('today').textContent =
+  new Date().toLocaleDateString(undefined,{
+    weekday:'short',day:'numeric',month:'short',year:'numeric'
+  });
+
+const demo = [
+  ['Aarav Nair','01','Plus One A'],
+  ['Ananya Menon','02','Plus One A'],
+  ['Adil Rahman','03','Plus One A'],
+  ['Diya Thomas','04','Plus One B'],
+  ['Ishan Kumar','05','Plus One B'],
+  ['Meera Joseph','06','Plus One B'],
+  ['Rayan Ali','07','Plus One A']
+];
+
+let students = JSON.parse(localStorage.attendxStudents || 'null')
+  || demo.map((x,i)=>({id:i+1,name:x[0],roll:x[1],cls:x[2]}));
+
+let records = JSON.parse(localStorage.attendxRecords || 'null');
+
+if (!records) {
+  records = {};
+  students.forEach((s,i)=>{
+    records[today+'_'+s.id] =
+      i===2 || i===5 ? 'Absent' : 'Present';
+  });
+}
+
+const $ = id => document.getElementById(id);
+
+const save = () => {
+  localStorage.attendxStudents = JSON.stringify(students);
+  localStorage.attendxRecords = JSON.stringify(records);
+};
+
+const st = (d,id) => records[d+'_'+id] || 'Not marked';
+
+const esc = s => String(s).replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+
+function pill(s) {
+  return '<span class="pill '+(
+    s==='Present'?'present':s==='Absent'?'absent':'pending'
+  )+'">'+s+'</span>';
+}
+
+function toast(s) {
+  $('toast').textContent=s;
+  $('toast').style.display='block';
+  setTimeout(()=>$('toast').style.display='none',2200);
+}
+
+function go(id) {
+  document.querySelectorAll('.page').forEach(x=>
+    x.classList.toggle('active',x.id===id)
+  );
+  document.querySelectorAll('.tab').forEach(x=>
+    x.classList.toggle('active',x.dataset.p===id)
+  );
+  render();
+}
+
+document.querySelectorAll('.tab').forEach(b=>{
+  b.onclick=()=>go(b.dataset.p);
+});
+
+function render() {
+  dash();
+  renderStudents();
+  renderAttendance();
+  renderHistory();
+
+  let v=$('sc').value;
+  $('sc').innerHTML='<option value="">All Classes</option>'+
+    [...new Set(students.map(s=>s.cls))]
+      .map(c=>'<option>'+esc(c)+'</option>').join('');
+  $('sc').value=v;
+  renderStudents();
+}
+
+function dash() {
+  let p=students.filter(s=>st(today,s.id)==='Present').length;
+  let a=students.filter(s=>st(today,s.id)==='Absent').length;
+  let n=students.length;
+  let r=n?Math.round(p/n*100):0;
+
+  $('total').textContent=n;
+  $('present').textContent=p;
+  $('absent').textContent=a;
+  $('rate').textContent=r+'%';
+  $('ptext').textContent=p+' / '+n;
+  $('atext').textContent=a+' / '+n;
+  $('pbar').style.width=r+'%';
+  $('abar').style.width=(n?Math.round(a/n*100):0)+'%';
+
+  $('dashrows').innerHTML=students.slice(0,8).map(s=>
+    '<tr><td><b>'+esc(s.name)+'</b><div class="muted">Roll '+esc(s.roll)+'</div></td>'+
+    '<td>'+esc(s.cls)+'</td><td>'+pill(st(today,s.id))+'</td></tr>'
+  ).join('') || '<tr><td colspan="3">No students yet</td></tr>';
+}
+
+function renderStudents() {
+  let q=$('sq').value.toLowerCase();
+  let cl=$('sc').value;
+  let a=students.filter(s=>
+    (s.name.toLowerCase().includes(q)||s.roll.toLowerCase().includes(q)) &&
+    (!cl||s.cls===cl)
+  );
+
+  $('srows').innerHTML=a.map(s=>
+    '<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(s.roll)+'</td>'+
+    '<td>'+esc(s.cls)+'</td><td>'+
+    '<button class="btn" onclick="edit('+s.id+')">Edit</button> '+
+    '<button class="btn" onclick="del('+s.id+')">Delete</button></td></tr>'
+  ).join('') || '<tr><td colspan="4">No students found</td></tr>';
+}
+
+function openForm(s) {
+  $('form').reset();
+  $('fid').value=s?s.id:'';
+  $('ft').textContent=s?'Edit Student':'Add Student';
+
+  if(s) {
+    $('fn').value=s.name;
+    $('fr').value=s.roll;
+    $('fc').value=s.cls;
+  }
+
+  $('modal').style.display='grid';
+}
+
+function closeForm() {
+  $('modal').style.display='none';
+}
+
+function edit(id) {
+  openForm(students.find(s=>s.id===id));
+}
+
+function del(id) {
+  let s=students.find(x=>x.id===id);
+  if(!confirm('Delete '+s.name+'?')) return;
+
+  students=students.filter(x=>x.id!==id);
+
+  Object.keys(records).forEach(k=>{
+    if(k.endsWith('_'+id)) delete records[k];
+  });
+
+  save();
+  render();
+  toast('Student deleted');
+}
+
+$('form').onsubmit=e=>{
+  e.preventDefault();
+
+  let id=Number($('fid').value);
+  let s={
+    id:id||Date.now(),
+    name:$('fn').value.trim(),
+    roll:$('fr').value.trim(),
+    cls:$('fc').value.trim()
+  };
+
+  if(students.some(x=>
+    x.roll.toLowerCase()===s.roll.toLowerCase() && x.id!==id
+  )) {
+    toast('Roll number already exists');
+    return;
+  }
+
+  students=id
+    ?students.map(x=>x.id===id?s:x)
+    :[...students,s];
+
+  save();
+  closeForm();
+  render();
+  toast('Student saved');
+};
+
+$('ad').value=today;
+$('hd').value=today;
+$('ad').onchange=renderAttendance;
+
+function renderAttendance() {
+  let d=$('ad').value||today;
+  let q=$('aq').value.toLowerCase();
+
+  $('arows').innerHTML=students.filter(s=>
+    s.name.toLowerCase().includes(q)||s.roll.toLowerCase().includes(q)
+  ).map(s=>
+    '<tr><td>'+esc(s.name)+'</td><td>'+esc(s.roll)+'</td>'+
+    '<td>'+esc(s.cls)+'</td><td><select onchange="setStatus(\\''+
+    d+'\\','+s.id+',this.value)">'+
+    '<option '+(st(d,s.id)==='Not marked'?'selected':'')+'>Not marked</option>'+
+    '<option '+(st(d,s.id)==='Present'?'selected':'')+'>Present</option>'+
+    '<option '+(st(d,s.id)==='Absent'?'selected':'')+'>Absent</option>'+
+    '</select></td></tr>'
+  ).join('') || '<tr><td colspan="4">No students</td></tr>';
+}
+
+function setStatus(d,id,v) {
+  if(v==='Not marked') delete records[d+'_'+id];
+  else records[d+'_'+id]=v;
+
+  save();
+  dash();
+  renderHistory();
+  toast('Attendance updated');
+}
+
+function markAll(v) {
+  students.forEach(s=>{
+    records[($('ad').value||today)+'_'+s.id]=v;
+  });
+
+  save();
+  render();
+  toast('All marked '+v);
+}
+
+$('hd').onchange=renderHistory;
+
+function renderHistory() {
+  let d=$('hd').value;
+  let q=$('hq').value.toLowerCase();
+  let f=$('hs').value;
+
+  let a=students.map(s=>({s,v:st(d,s.id)})).filter(x=>
+    x.v!=='Not marked' &&
+    (!q||x.s.name.toLowerCase().includes(q)||x.s.roll.toLowerCase().includes(q)) &&
+    (!f||x.v===f)
+  );
+
+  $('hrows').innerHTML=a.map(x=>
+    '<tr><td>'+esc(d)+'</td><td>'+esc(x.s.name)+'</td>'+
+    '<td>'+esc(x.s.roll)+'</td><td>'+esc(x.s.cls)+'</td>'+
+    '<td>'+pill(x.v)+'</td></tr>'
+  ).join('') || '<tr><td colspan="5">No records for this date</td></tr>';
+}
+
+function csv() {
+  let d=$('hd').value;
+
+  let rows=[
+    ['Date','Student','Roll','Class','Status'],
+    ...students.map(s=>[
+      d,s.name,s.roll,s.cls,st(d,s.id)
+    ]).filter(x=>x[4]!=='Not marked')
+  ];
+
+  let data=rows.map(r=>
+    r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')
+  ).join('\n');
+
+  let url=URL.createObjectURL(
+    new Blob([data],{type:'text/csv'})
+  );
+
+  let a=document.createElement('a');
+  a.href=url;
+  a.download='attendx-'+d+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+render();
+</script>
+</body>
+</html>
